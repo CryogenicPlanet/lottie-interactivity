@@ -118,4 +118,18 @@ document.addEventListener('DOMContentLoaded', function () {
       },
     ],
   });
+
+  LottieInteractivity.create({
+    player: '#ninthLottie',
+    container: '#hover-container3',
+    mode: 'mouseposition',
+    actions: [
+      {
+        start: 0,
+        end: 1.0,
+        type: 'seek-xaxis',
+        frames: [0, 139],
+      },
+    ],
+  });
 });

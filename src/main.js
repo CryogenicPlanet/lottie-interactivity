@@ -188,12 +188,12 @@ export class LottieInteractivity {
     //console.log("x" + xpos);
     //console.log("y" + ypos);
     // cauclate percentage of y axis
-    if (action.type === 'yaxis') {
+    if (action.type === 'seek-yaxis') {
       const percentage = Math.ceil((ypos / height) * 100);
       const percentageString = percentage.toString() + '%';
 
       this.player.seek(percentageString);
-    } else if (action.type === 'xaxis') {
+    } else if (action.type === 'seek-xaxis') {
       const percentage = Math.ceil((xpos / bottom) * 100);
       const percentageString = percentage.toString() + '%';
 
