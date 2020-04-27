@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
         start: 0,
         end: 1.0,
         type: 'seek-xaxis',
-        frames: [0, 139],
+        frames: [0, 180],
       },
     ],
   });
