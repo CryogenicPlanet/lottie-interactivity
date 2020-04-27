@@ -46,17 +46,26 @@ export class LottieInteractivity {
 
   boundingBoxUtils() {
     // Get the bounding box for the lottie player or container
-    const { top, height } = this.container.getBoundingClientRect();
+    const { top, bottom, height } = this.container.getBoundingClientRect();
 
     // Calculate current view percentage
     const current = window.innerHeight - top;
     const max = window.innerHeight + height;
     const currentPercent = current / max;
 
+    // Skip if out of viewport
+    if (currentPercent < 0 || currentPercent > 1) {
+      return null;
+    }
     // Find the first action that satisfies the current position conditions
     const action = this.actions.find(({ start, end }) => currentPercent >= start && currentPercent <= end);
 
-    return { currentPercent, action };
+    // Skip if no matching action was found!
+    if (!action) {
+      return null;
+    }
+
+    return { top, height, bottom, currentPercent, action };
   }
 
   start() {
@@ -67,6 +76,10 @@ export class LottieInteractivity {
     if (this.mode === 'hover') {
       this.container.addEventListener('mouseenter', this.#hoverStartHandler);
       this.container.addEventListener('mouseleave', this.#hoverEndHandler);
+    }
+
+    if (this.mode === 'mouseposition') {
+      this.container.onmousemove = this.#mousePositionHandler;
     }
   }
 
@@ -83,16 +96,8 @@ export class LottieInteractivity {
 
   #hoverStartHandler = () => {
     // Skip if no matching action was found!
-    const { currentPercent, action } = this.boundingBoxUtils();
+    const { action } = this.boundingBoxUtils();
 
-    // Skip if out of viewport
-    if (currentPercent < 0 || currentPercent > 1) {
-      return;
-    }
-    // Skip if no matching action was found!
-    if (!action) {
-      return;
-    }
     if (action.type === 'loop') {
       if (this.player.isPaused === true) {
         this.player.playSegments(action.frames, true);
@@ -112,16 +117,8 @@ export class LottieInteractivity {
 
   #hoverEndHandler = () => {
     // Skip if no matching action was found!
-    const { currentPercent, action } = this.boundingBoxUtils();
+    const { action } = this.boundingBoxUtils();
 
-    // Skip if out of viewport
-    if (currentPercent < 0 || currentPercent > 1) {
-      return;
-    }
-    // Skip if no matching action was found!
-    if (!action) {
-      return;
-    }
     if (action.type === 'loop') {
       this.player.stop();
     } else if (action.type === 'play') {
@@ -133,15 +130,6 @@ export class LottieInteractivity {
 
   #scrollHandler = () => {
     const { currentPercent, action } = this.boundingBoxUtils();
-
-    // Skip if out of viewport
-    if (currentPercent < 0 || currentPercent > 1) {
-      return;
-    }
-    // Skip if no matching action was found!
-    if (!action) {
-      return;
-    }
 
     // Get lottie instance
     this.player.loop = true;
@@ -170,6 +158,46 @@ export class LottieInteractivity {
       this.player.goToAndStop(action.frames[0]);
       this.player.stop();
       // TODO: This is not the way to implement this. Refactor needed!
+    }
+  };
+  #mousePositionHandler = mouseEvent => {
+    const { height, bottom, currentPercent, action } = this.boundingBoxUtils();
+
+    let obj_left = 0;
+    let obj_top = 0;
+    let xpos;
+    let ypos;
+    // Get the moise position relative to container
+    while (this.container.offsetParent) {
+      obj_left += this.container.offsetLeft;
+      obj_top += this.container.offsetTop;
+      this.container = this.container.offsetParent;
+    }
+    if (mouseEvent) {
+      //FireFox
+      xpos = mouseEvent.pageX;
+      ypos = mouseEvent.pageY;
+    } else {
+      //IE
+      xpos = window.event.x + document.body.scrollLeft - 2;
+      ypos = window.event.y + document.body.scrollTop - 2;
+    }
+    xpos -= obj_left;
+    ypos -= obj_top;
+
+    //console.log("x" + xpos);
+    //console.log("y" + ypos);
+    // cauclate percentage of y axis
+    if (action.type === 'yaxis') {
+      const percentage = Math.ceil((ypos / height) * 100);
+      const percentageString = percentage.toString() + '%';
+
+      this.player.seek(percentageString);
+    } else if (action.type === 'xaxis') {
+      const percentage = Math.ceil((xpos / bottom) * 100);
+      const percentageString = percentage.toString() + '%';
+
+      this.player.seek(percentageString);
     }
   };
 }
