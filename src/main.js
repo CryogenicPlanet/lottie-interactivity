@@ -43,6 +43,9 @@ export class LottieInteractivity {
     this.actions = actions;
     this.options = options;
     this.assignedSegment = null;
+    this.yPos = 0;
+    this.yMultiplier = options.yMultiplier || 1;
+    //   console.log(this.yMultiplier);
   }
 
   getContainerVisibility() {
@@ -51,6 +54,16 @@ export class LottieInteractivity {
 
     // Calculate current view percentage
     const current = window.innerHeight - top;
+    const max = window.innerHeight + height;
+    return current / max;
+  }
+
+  getWheelPosition() {
+    // Get the bounding box for the lottie player or container
+    const { height } = this.container.getBoundingClientRect();
+
+    // Calculate current view percentage
+    const current = this.yPos * this.yMultiplier;
     const max = window.innerHeight + height;
     return current / max;
   }
@@ -72,6 +85,14 @@ export class LottieInteractivity {
         Parentscope.player.loop = true;
         Parentscope.player.stop();
         window.addEventListener('scroll', Parentscope.#scrollHandler);
+      });
+    }
+
+    if (this.mode === 'wheel') {
+      this.player.addEventListener('DOMLoaded', function () {
+        Parentscope.player.loop = true;
+        Parentscope.player.stop();
+        window.addEventListener('wheel', Parentscope.#wheelHandler);
       });
     }
 
@@ -147,6 +168,68 @@ export class LottieInteractivity {
         this.player.resetSegments();
       }
       this.player.playSegments(action.frames);
+    } else if (action.type === 'stop') {
+      // Stop: Stop playback
+      this.player.goToAndStop(action.frames[0], true);
+    }
+  };
+
+  #wheelHandler = e => {
+    const deltaY = e.deltaY;
+    this.yPos += deltaY;
+    //   console.log(this.yPos);
+    // Get container visibility percentage
+
+    const currentPercent = this.getWheelPosition();
+
+    // Find the first action that satisfies the current position conditions
+    const action = this.actions.find(
+      ({ visibility }) => currentPercent >= visibility[0] && currentPercent <= visibility[1],
+    );
+
+    // Skip if no matching action was found!
+    if (!action) {
+      return;
+    }
+
+    // Process action types:
+    if (action.type === 'seek') {
+      // Seek: Go to a frame based on player scroll position action
+      // console.log(currentPercent,this.yPos)
+      this.player.goToAndStop(
+        Math.ceil(
+          Math.min((currentPercent - action.visibility[0]) / (action.visibility[1] - action.visibility[0]), 100) *
+            this.player.totalFrames,
+        ),
+        true,
+      );
+    } else if (action.type === 'loop') {
+      // Loop: Loop a given frames
+      if (this.assignedSegment === null) {
+        // if not playing any segments currently. play those segments and save to state
+        this.player.playSegments(action.frames, true);
+        this.assignedSegment = action.frames;
+      } else {
+        // if playing any segments currently.
+        //check if segments in state are equal to the frames selected by action
+        if (this.assignedSegment !== action.frames) {
+          // if they are not equal. new segments are to be loaded
+          this.player.playSegments(action.frames, true);
+          this.assignedSegment = action.frames;
+        } else {
+          // if they are equal the play method must be called only if lottie is paused
+          if (this.player.isPaused === true) {
+            this.player.playSegments(action.frames, true);
+            this.assignedSegment = action.frames;
+          }
+        }
+      }
+    } else if (action.type === 'play') {
+      // Play: Reset segments and continue playing full animation from current position
+      if (this.player.isPaused === true) {
+        this.player.resetSegments();
+        this.player.play();
+      }
     } else if (action.type === 'stop') {
       // Stop: Stop playback
       this.player.goToAndStop(action.frames[0], true);
